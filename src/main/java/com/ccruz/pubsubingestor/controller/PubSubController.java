@@ -44,7 +44,7 @@ public class PubSubController {
         } catch (InvalidEventException exception) {
             eventProcessingLogger.invalid(messageId, exception);
 
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.internalServerError().build();
         } catch (RuntimeException exception) {
             eventProcessingLogger.failed(messageId, exception);
 
