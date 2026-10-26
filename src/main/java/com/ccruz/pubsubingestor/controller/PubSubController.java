@@ -3,54 +3,52 @@ package com.ccruz.pubsubingestor.controller;
 import com.ccruz.pubsubingestor.model.IncomingEvent;
 import com.ccruz.pubsubingestor.model.PubSubPushRequest;
 import com.ccruz.pubsubingestor.service.EventIngestionService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ccruz.pubsubingestor.service.EventProcessingLogger;
+import com.ccruz.pubsubingestor.service.InvalidEventException;
+import com.ccruz.pubsubingestor.service.PubSubEventDecoder;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
 @RestController
 public class PubSubController {
 
-    private final ObjectMapper objectMapper;
+    private final PubSubEventDecoder eventDecoder;
     private final EventIngestionService eventIngestionService;
+    private final EventProcessingLogger eventProcessingLogger;
 
     public PubSubController(
-            ObjectMapper objectMapper,
-            EventIngestionService eventIngestionService
+            PubSubEventDecoder eventDecoder,
+            EventIngestionService eventIngestionService,
+            EventProcessingLogger eventProcessingLogger
     ) {
-        this.objectMapper = objectMapper;
+        this.eventDecoder = eventDecoder;
         this.eventIngestionService = eventIngestionService;
+        this.eventProcessingLogger = eventProcessingLogger;
     }
 
     @PostMapping("/pubsub/events")
-    public ResponseEntity<Void> receive(@Valid @RequestBody PubSubPushRequest request)
-            throws JsonProcessingException {
+    public ResponseEntity<Void> receive(@Valid @RequestBody PubSubPushRequest request) {
+        String messageId = request.message().messageId();
 
-        String decodedPayload = new String(
-                Base64.getDecoder().decode(request.message().data()),
-                StandardCharsets.UTF_8
-        );
+        try {
+            IncomingEvent event = eventDecoder.decode(request.message().data());
 
-        IncomingEvent event = objectMapper.readValue(decodedPayload, IncomingEvent.class);
+            eventIngestionService.ingest(event);
 
-        eventIngestionService.ingest(event);
+            eventProcessingLogger.processed(messageId, event);
 
-        return ResponseEntity.noContent().build();
-    }
+            return ResponseEntity.noContent().build();
+        } catch (InvalidEventException exception) {
+            eventProcessingLogger.invalid(messageId, exception);
 
-    @ExceptionHandler({
-            IllegalArgumentException.class,
-            JsonProcessingException.class
-    })
-    public ResponseEntity<Void> handleInvalidMessage(RuntimeException exception) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException exception) {
+            eventProcessingLogger.failed(messageId, exception);
+
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

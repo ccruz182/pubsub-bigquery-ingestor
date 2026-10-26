@@ -8,6 +8,7 @@ import com.google.cloud.bigquery.InsertAllResponse;
 import com.google.cloud.bigquery.TableId;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 
@@ -16,14 +17,20 @@ public class EventIngestionService {
 
     private final BigQuery bigQuery;
     private final TableId tableId;
+    private final Clock clock;
 
-    public EventIngestionService(BigQuery bigQuery, BigQueryProperties properties) {
+    public EventIngestionService(
+            BigQuery bigQuery,
+            BigQueryProperties properties,
+            Clock clock
+    ) {
         this.bigQuery = bigQuery;
         this.tableId = TableId.of(
                 properties.projectId(),
                 properties.dataset(),
                 properties.table()
         );
+        this.clock = clock;
     }
 
     public void ingest(IncomingEvent event) {
@@ -32,7 +39,7 @@ public class EventIngestionService {
                 "customer_id", event.customerId(),
                 "event_type", event.eventType(),
                 "occurred_at", event.occurredAt().toString(),
-                "received_at", Instant.now().toString()
+                "received_at", Instant.now(clock).toString()
         );
 
         InsertAllRequest request = InsertAllRequest.newBuilder(tableId)
@@ -43,7 +50,8 @@ public class EventIngestionService {
 
         if (response.hasErrors()) {
             throw new BigQueryInsertException(
-                    "BigQuery rejected one or more rows: " + response.getInsertErrors()
+                    "BigQuery rejected one or more rows: "
+                            + response.getInsertErrors()
             );
         }
     }
