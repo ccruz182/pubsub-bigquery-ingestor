@@ -1,0 +1,20 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: pubsub-bigquery-ingestor
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+app:
+  bigquery:
+    project-id: ${GCP_PROJECT_ID:dataflow-demo-507214}
+    dataset: ${BIGQUERY_DATASET:pubsub_demo}
+    table: ${BIGQUERY_TABLE:events}
+
+logging:
+  level:
+    root: INFO
+    com.ccruz.pubsubingestor: INFO
