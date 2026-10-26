@@ -10,7 +10,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  - id: verify-and-scan-dependencies
+  - id: verify
     name: maven:3.9.9-eclipse-temurin-21
     entrypoint: mvn
     args:
