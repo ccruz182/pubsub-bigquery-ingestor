@@ -40,6 +40,4 @@ steps:
       - --service-account=${_RUNTIME_SERVICE_ACCOUNT}
       - --no-allow-unauthenticated
       - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=${_BIGQUERY_DATASET},BIGQUERY_TABLE=${_BIGQUERY_TABLE}
-
-images:
-  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$SHORT_SHA
+      - --set-secrets=INTEGRATION_DEMO_SECRET=integration-demo-secret:latest
